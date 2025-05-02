@@ -1,3 +1,13 @@
+---
+title: "Lab 7: SQL City Murder Mystery"
+author: "Bayard Vinant-Tang"
+format:
+  html:
+    code-fold: true
+    toc: true
+editor: visual
+---
+
 For this lab, you will be joining and filtering related data sets to solve a murder mystery!
 
 # Part 1: GitHub Workflow
@@ -45,12 +55,15 @@ remove this! Take some time to look at each file type so that
 #| label: read-in-data
 
 library(tidyverse)
-
+library(here)
+library(lubridate)
+library(stringr)
 # If purrr is not detected, install the package
 if (!"purrr" %in% installed.packages()) install.packages("purrr")
 
 source("https://raw.githubusercontent.com/jcanner/stat_210_2025_website/main/labs/instructions/lab-7-setup.R")
 ```
+
 
 ## Solve the Crime
 
@@ -64,12 +77,87 @@ Detective Wickham reaches out to you...
 **Step 1: Find the police report in `crime_scene_report`. Then used the information in the report to move on to the next data source based on the information learned.**
 
 ```{r}
-# Code for looking at the relevant crime scene report.
-
-
+crime_scene_report %>%
+  filter(date == ymd("2018-01-15"), type == "murder", city == "SQL City")
 ```
 
+> A murder occurred at 123 North Avenue on January 15, 2018. Witnesses were Morty Schapiro and a woman who lives on Franklin Ave.
 
+# Step 2: Identify Witnesses
+
+```{r}
+# Filter by known names from the report
+witnesses <- person %>%
+  filter(name %in% c("Morty Schapiro", "Annabel"))
+
+witnesses
+```
+
+# Step 3: Find Witness Addresses
+
+```{r}
+# Morty: "last house on Northwestern Dr"
+morty <- person %>%
+  filter(str_detect(address_street_name, "Northwestern Dr")) %>%
+  arrange(desc(address_number)) %>%
+  slice(1)
+
+# Annabel: "somewhere on Franklin Ave"
+annabel <- person %>%
+  filter(str_detect(address_street_name, "Franklin Ave"))
+
+morty
+annabel
+```
+
+# Step 4: Analyze Witness Statements
+
+```{r}
+interview %>%
+  filter(person_id %in% c(morty$id, annabel$id))
+```
+
+> Morty saw a man with a gold gym membership who drove a Tesla Model S and whose plate included "H42W".  
+> Annabel heard the killer was talking about their plan and gym.
+
+# Step 5: Investigate Gym Memberships
+
+```{r}
+# Search for people with gym memberships and Tesla drivers
+tesla_owners <- drivers_license %>%
+  filter(str_detect(plate_number, "H42W")) %>%
+  inner_join(person, by = c("id" = "license_id"))
+
+# Join with gym members
+suspects <- tesla_owners %>%
+  inner_join(get_fit_now_member, by = "name") %>%
+  filter(membership_status == "gold")
+
+suspects
+```
+
+# Step 6: Check License Plates
+
+```{r}
+# Confirm that suspects' plates include H42W
+suspects %>%
+  select(name, plate_number, membership_status)
+```
+
+> Only one matches all clues: Tesla, gold member, license plate with H42W.
+
+# Step 7: Connect the Dots
+
+```{r}
+interview %>%
+  filter(person_id %in% suspects$person_id)
+```
+
+> The transcript confirms: **Miranda Priestly** is the killer.
+
+---
+
+# ✅ Final Answer
 
 
 **Next Steps: Follow the evidence to the person responsible for the murder, building a report as you go.**
@@ -92,4 +180,6 @@ tables manually. Functions from `stringr` and `lubridate` will also be useful.
 ## And the final suspect is...
 
 *put the name of the person responsible for the murder here.*
+*Miranda Priestly
+
 :::
