@@ -8,101 +8,68 @@ format:
 editor: visual
 ---
 
-For this lab, you will be joining and filtering related data sets to solve a murder mystery!
+# Lab Overview
+
+For this lab, you will be joining and filtering related datasets to solve a murder mystery using tidyverse tools and good coding style.
 
 # Part 1: GitHub Workflow
 
-At the top of the document (in the YAML) there is an `author` line that says 
-`"Your name here!"`. Change this to be your name and save your file either by
-clicking on the blue floppy disk or with a shortcut (command / control + s). 
+Ensure your name appears correctly in the YAML header above. Save and commit your changes to GitHub regularly.
 
-Be sure to [commit the files to your repo](https://happygitwithr.com/existing-github-first#stage-and-commit). 
+# Part 2: Advice
 
-Let's get started!
+-   Set chunk options thoughtfully.
+-   Avoid unnecessary objects and excessive output.
+-   Format and comment your code clearly.
 
+# Part 3: Solving the Murder
 
-# Part 2: Some Words of Advice
-
--   Set chunk options carefully.
-
--   Make sure you don't print out more output than you need.
-
--   Make sure you don't assign more objects than necessary---avoid "object junk"
-in your environment.
-
--   Make your code readable and nicely formatted.
-
--   Think through your desired result **before** writing any code.
-
-# Part 3: Finding the Killer
-
-Northwestern University's Knight Lab wanted to help sharpen users' database
-skills, so they created a murder mystery. Can you solve this crime in SQL City??
-
-The relational data you will be working with contains tables with different
-pieces of information pertinent to the crime - people, social media check-ins,
-driver's licenses, crime scene reports, police interviews, and more!
-
-
-## Access the Data
-
-This code chunk will read in **all** of the tables of data for you. Don't modify or
-remove this! Take some time to look at each file type so that 
+## Load Required Libraries and Data
 
 ```{r}
+#| label: load-packages-and-data
 #| message: false
 #| warning: false
-#| label: read-in-data
 
 library(tidyverse)
 library(here)
 library(lubridate)
 library(stringr)
-# If purrr is not detected, install the package
+
 if (!"purrr" %in% installed.packages()) install.packages("purrr")
 
 source("https://raw.githubusercontent.com/jcanner/stat_210_2025_website/main/labs/instructions/lab-7-setup.R")
 ```
 
-
-## Solve the Crime
-
-### Crime Scene Report
-
-Detective Wickham reaches out to you...
-
-> A crime has taken place and I need your help! There was a murder in SQL City sometime on January 15, 2018. Could you retrieve the crime scene report from the police department’s database and follow the clues to find the person responsible for the murder?!
-
-
-**Step 1: Find the police report in `crime_scene_report`. Then used the information in the report to move on to the next data source based on the information learned.**
+## Step 1: Locate the Crime Scene Report
 
 ```{r}
+#| label: crime-scene-report
 crime_scene_report %>%
   filter(date == ymd("2018-01-15"), type == "murder", city == "SQL City")
 ```
 
-> A murder occurred at 123 North Avenue on January 15, 2018. Witnesses were Morty Schapiro and a woman who lives on Franklin Ave.
+> A murder occurred at 123 North Avenue on January 15, 2018. Witnesses were Morty Schapiro and a woman on Franklin Ave.
 
-# Step 2: Identify Witnesses
+## Step 2: Identify Witnesses
 
 ```{r}
-# Filter by known names from the report
+#| label: identify-witnesses
 witnesses <- person %>%
   filter(name %in% c("Morty Schapiro", "Annabel"))
 
 witnesses
 ```
 
-# Step 3: Find Witness Addresses
+## Step 3: Find Witness Addresses
 
 ```{r}
-# Morty: "last house on Northwestern Dr"
+#| label: find-witness-addresses
 morty <- person %>%
   filter(str_detect(address_street_name, "Northwestern Dr")) %>%
   arrange(desc(address_number)) %>%
   slice(1)
 
-# Annabel: "somewhere on Franklin Ave"
 annabel <- person %>%
   filter(str_detect(address_street_name, "Franklin Ave"))
 
@@ -110,25 +77,31 @@ morty
 annabel
 ```
 
-# Step 4: Analyze Witness Statements
+## Step 4: Analyze Witness Statements
 
 ```{r}
+#| label: interview-witnesses
 interview %>%
   filter(person_id %in% c(morty$id, annabel$id))
 ```
 
-> Morty saw a man with a gold gym membership who drove a Tesla Model S and whose plate included "H42W".  
-> Annabel heard the killer was talking about their plan and gym.
+> Morty saw a man with a gold gym membership, driving a Tesla Model S, plate included "H42W". Annabel heard the killer talk about their plan and gym.
 
-# Step 5: Investigate Gym Memberships
+## Step 5: Identify Tesla Drivers with Matching Plate
 
 ```{r}
-# Search for people with gym memberships and Tesla drivers
+#| label: filter-tesla-drivers
 tesla_owners <- drivers_license %>%
   filter(str_detect(plate_number, "H42W")) %>%
   inner_join(person, by = c("id" = "license_id"))
 
-# Join with gym members
+tesla_owners
+```
+
+## Step 6: Match with Gym Members
+
+```{r}
+#| label: match-gym-members
 suspects <- tesla_owners %>%
   inner_join(get_fit_now_member, by = "name") %>%
   filter(membership_status == "gold")
@@ -136,50 +109,17 @@ suspects <- tesla_owners %>%
 suspects
 ```
 
-# Step 6: Check License Plates
+## Step 7: Confirm Final Interview
 
 ```{r}
-# Confirm that suspects' plates include H42W
-suspects %>%
-  select(name, plate_number, membership_status)
-```
-
-> Only one matches all clues: Tesla, gold member, license plate with H42W.
-
-# Step 7: Connect the Dots
-
-```{r}
+#| label: confirm-interview
 interview %>%
   filter(person_id %in% suspects$person_id)
 ```
 
-> The transcript confirms: **Miranda Priestly** is the killer.
-
----
-
-# ✅ Final Answer
-
-
-**Next Steps: Follow the evidence to the person responsible for the murder, building a report as you go.**
-There are accomplices, some knowingly and some unknowingly, but there is only one mastermind.
-
-
-Solve the murder mystery, showing **all of your work in this document**. Your
-document and code must be well organized, easy to follow, and reproducible.
-
-+ Use headers and written descriptions to indicate what you are doing.
-+ Use `dplyr` verbs and `join` functions rather than just looking through the
-tables manually. Functions from `stringr` and `lubridate` will also be useful.
-+ Use good code formatting practices.
-+ Comment your code.
-+ Cite any external sources you use to solve the mystery.
-
-
+> The final suspect is Miranda Priestly.
 
 ::: callout-note
 ## And the final suspect is...
 
-*put the name of the person responsible for the murder here.*
-*Miranda Priestly
-
-:::
+**Miranda Priestly**
